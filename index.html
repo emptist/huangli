@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>时轮运转 · 每日一签</title>
+<meta property="og:title" content="时轮运转 · 今日运势" />
+<meta property="og:description" content="基于藏历时轮历法，每日能量 + 人生进度条" />
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:linear-gradient(160deg,#0d0b1a 0%,#1a1035 40%,#0f0820 100%);
+  color:#fff;min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent
+}
+canvas#bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+.app{position:relative;z-index:1;max-width:460px;margin:0 auto;padding:14px 10px 36px}
+
+/* header */
+.header{text-align:center;padding:24px 0 16px}
+.header .om{font-size:2.4rem;display:block;margin-bottom:6px;filter:drop-shadow(0 0 20px rgba(212,175,55,.4))}
+.header h1{
+  font-size:1.5rem;font-weight:900;
+  background:linear-gradient(135deg,#D4AF37,#F5DEB3,#D4AF37,#C9A227);
+  background-size:200% 200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:goldShimmer 4s ease infinite;letter-spacing:4px
+}
+@keyframes goldShimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.header .sub{
+  font-size:.7rem;color:#8B7355;margin-top:8px;letter-spacing:3px;
+  display:flex;align-items:center;justify-content:center;gap:6px
+}
+.header .sub::before,.header .sub::after{
+  content:'';width:24px;height:1px;background:linear-gradient(90deg,transparent,#8B7355)
+}
+.header .sub::after{background:linear-gradient(90deg,#8B7355,transparent)}
+
+/* mandala ring decoration */
+.mandala-ring{
+  width:120px;height:120px;margin:0 auto 12px;position:relative;
+  display:flex;align-items:center;justify-content:center
+}
+.mandala-ring svg{width:100%;height:100%;animation:spinSlow 30s linear infinite}
+@keyframes spinSlow{to{transform:rotate(360deg)}}
+.mandala-center{
+  position:absolute;width:50px;height:50px;border-radius:50%;
+  background:radial-gradient(circle,rgba(212,175,55,.3),rgba(212,175,55,.05));
+  border:1px solid rgba(212,175,55,.2);display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;animation:pulseGlow 3s ease-in-out infinite
+}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 15px rgba(212,175,55,.2)}50%{box-shadow:0 0 30px rgba(212,175,55,.5)}}
+
+/* date card */
+.date-card{
+  background:linear-gradient(150deg,rgba(212,175,55,.07),rgba(180,130,60,.03),rgba(212,175,55,.04));
+  border:1px solid rgba(212,175,55,.15);border-radius:18px;
+  padding:20px 20px;text-align:center;margin-bottom:14px;
+  position:relative;overflow:hidden
+}
+.date-card::before{
+  content:'';position:absolute;top:-60%;right:-40%;width:240px;height:240px;
+  background:radial-gradient(circle,rgba(212,175,55,.06),transparent 70%);pointer-events:none
+}
+.date-card .solar{font-size:1.15rem;font-weight:700;color:#F5DEB3;letter-spacing:1px}
+.date-card .lunar-row{display:flex;justify-content:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.lunar-item{
+  font-size:.72rem;color:#A08060;padding:3px 10px;border-radius:8px;
+  background:rgba(212,175,55,.05);border:1px solid rgba(212,175,55,.1);
+  white-space:nowrap
+}
+.lunar-item.tibetan{
+  color:#C9A227;background:rgba(201,162,39,.08);
+  border-color:rgba(201,162,39,.18);font-weight:600
+}
+.lunar-item.jieqi{color:#DDAA55;border-color:rgba(221,170,85,.15)}
+
+/* life progress */
+.section{background:rgba(10,8,25,.82);border:1px solid rgba(212,175,55,.08);border-radius:18px;padding:20px 18px;margin-bottom:14px}
+.sec-title{
+  font-size:.78rem;font-weight:700;color:#D4AF37;letter-spacing:3px;
+  margin-bottom:14px;display:flex;align-items:center;gap:8px
+}
+.sec-title .dot{
+  width:4px;height:14px;background:linear-gradient(#D4AF37,#B8860B);border-radius:2px;
+  flex-shrink:0
+}
+.progress-wrap{margin-bottom:14px}
+.progress-label{display:flex;justify-content:space-between;font-size:.72rem;color:#776655;margin-bottom:6px}
+.progress-bar{height:22px;background:rgba(255,255,255,.04);border-radius:11px;overflow:hidden;position:relative}
+.progress-fill{
+  height:100%;border-radius:11px;
+  background:linear-gradient(90deg,#D4AF37,#DAa520,#B8860B,#CD853F);
+  transition:width 1.8s ease;position:relative
+}
+.progress-fill::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 30%,rgba(255,245,220,.12) 50%,transparent 70%);
+  animation:shimmer 2.5s infinite
+}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.progress-pct{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  font-size:.74rem;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);z-index:2
+}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-item{
+  background:rgba(212,175,55,.03);border:1px solid rgba(212,175,55,.06);
+  border-radius:12px;padding:11px 12px;text-align:center
+}
+.stat-val{font-size:1.05rem;font-weight:800;color:#D4AF37;font-family:'SF Mono',monospace}
+.stat-lbl{font-size:.64rem;color:#665544;margin-top:2px;letter-spacing:1px}
+.stat-item.warm .stat-val{color:#CD853F}
+.stat-item.cool .stat-val{color:#87CEEB}
+.stat-item.rose .stat-val{color:#E070A0}
+
+/* huangli */
+.yi-ji{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.yi-box,.ji-box{border-radius:14px;padding:14px 16px}
+.yi-box{background:rgba(34,160,100,.04);border:1px solid rgba(34,180,110,.12)}
+.ji-box{background:rgba(180,80,80,.04);border:1px solid rgba(190,90,90,.12)}
+.yiji-title{font-size:.76rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.yiji-title.yes{color:#66DD99}.yiji-title.no{color:#EE8888}
+.tag-list{display:flex;flex-wrap:wrap;gap:5px}
+.tag{
+  font-size:.7rem;padding:4px 9px;border-radius:8px;white-space:nowrap;line-height:1.4
+}
+.yi-box .tag{background:rgba(34,180,110,.09);color:#88EEBB}
+.ji-box .tag{background:rgba(190,90,90,.09);color:#FFAAAA}
+
+/* fortune */
+.stars-row{font-size:1.3rem;letter-spacing:3px;margin-bottom:12px;text-align:center}
+.fortune-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px}
+.ft-item{
+  display:flex;align-items:center;gap:7px;font-size:.74rem;
+  padding:9px 11px;background:rgba(212,175,55,.025);border-radius:10px;
+  border:1px solid rgba(212,175,55,.05)
+}
+.ft-icon{font-size:1rem;flex-shrink:0}
+.ft-key{color:#776655;min-width:64px;font-size:.7rem}
+.ft-val{color:#E8D8A0;font-weight:600;font-size:.72rem}
+
+/* love / beauty special */
+.special-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.sp-card{
+  text-align:center;padding:14px 10px;border-radius:14px;
+  border:1px solid rgba(212,175,55,.08)
+}
+.sp-card.love{background:rgba(230,100,140,.04);border-color:rgba(230,100,140,.12)}
+.sp-card.beauty{background:rgba(180,140,220,.04);border-color:rgba(180,140,220,.12)}
+.sp-card.money{background:rgba(212,175,55,.04);border-color:rgba(212,175,55,.12)}
+.sp-card.health{background:rgba(100,200,160,.04);border-color:rgba(100,200,160,.12)}
+.sp-icon{font-size:1.6rem;margin-bottom:4px}
+.sp-title{font-size:.7rem;color:#998877;margin-bottom:4px;letter-spacing:1px}
+.sp-desc{font-size:.78rem;font-weight:700;line-height:1.4}
+.sp-card.love .sp-desc{color:#E080A0}
+.sp-card.beauty .sp-desc{color:#B090D0}
+.sp-card.money .sp-desc{color:#D4AF37}
+.sp-card.health .sp-desc{color:#70CC99}
+
+/* quote */
+.quote-box{
+  text-align:center;padding:18px 16px;margin-bottom:14px;
+  background:linear-gradient(145deg,rgba(212,175,55,.04),rgba(180,130,60,.02));
+  border:1px solid rgba(212,175,55,.1);border-radius:16px;position:relative
+}
+.quote-mark{font-size:2rem;color:rgba(212,175,55,.12);line-height:1}
+.quote-txt{
+  font-size:.98rem;font-weight:600;color:#E8D090;letter-spacing:1.5px;
+  margin-top:-6px;line-height:1.6
+}
+.quote-from{font-size:.68rem;color:#665544;margin-top:8px;letter-spacing:1px}
+
+/* share */
+.share-btn{
+  display:block;width:100%;padding:15px;font-size:.95rem;font-weight:800;
+  color:#1a1035;background:linear-gradient(135deg,#D4AF37,#B8860B,#DAA520);
+  border:none;border-radius:15px;cursor:pointer;letter-spacing:4px;
+  box-shadow:0 4px 20px rgba(212,175,55,.25),0 0 0 1px rgba(212,175,55,.15);
+  transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden
+}
+.share-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(212,175,55,.4)}
+.share-btn:active{transform:translateY(0)}
+.share-btn::after{
+  content:'';position:absolute;top:0;left:-100%;width:55%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
+  animation:sheen 3s 2s ease infinite
+}
+@keyframes sheen{0%{left:-100%}30%{left:150%}100%{left:150%}}
+
+/* input area */
+.input-area{
+  background:rgba(10,8,25,.92);border:1px solid rgba(212,175,55,.1);
+  border-radius:18px;padding:20px 18px;margin-bottom:14px
+}
+.input-area .input-title{
+  font-size:.8rem;color:#D4AF37;font-weight:700;letter-spacing:2px;margin-bottom:12px;
+  text-align:center
+}
+.input-row{display:flex;gap:8px;margin-bottom:10px}
+.input-row:last-child{margin-bottom:0}
+.input-row input{
+  flex:1;background:rgba(212,175,55,.04);border:1px solid rgba(212,175,55,.1);
+  border-radius:10px;padding:10px 12px;font-size:.9rem;color:#fff;
+  outline:none;text-align:center;transition:border-color .2s
+}
+.input-row input:focus{border-color:rgba(212,175,55,.4)}
+.input-row input::placeholder{color:#554433}
+.input-hint{font-size:.62rem;color:#554433;text-align:center;margin-top:8px;letter-spacing:1px}
+.go-btn{
+  width:100%;padding:12px;margin-top:12px;font-size:.88rem;font-weight:800;
+  color:#1a1035;background:linear-gradient(135deg,#D4AF37,#B8860B);
+  border:none;border-radius:12px;cursor:pointer;letter-spacing:3px
+}
+.go-btn:hover{opacity:.92}
+
+.footer{text-align:center;padding:16px 0 8px;font-size:.6rem;color:#332211;letter-spacing:1px}
+
+/* music player */
+.music-fab{
+  position:fixed;bottom:24px;right:20px;z-index:50;
+  width:48px;height:48px;border-radius:50%;
+  background:linear-gradient(135deg,#D4AF37,#B8860B);
+  border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px rgba(212,175,55,.35);
+  transition:transform .2s,box-shadow .2s
+}
+.music-fab:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(212,175,55,.5)}
+.music-fab .icon{font-size:1.3rem;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
+.music-fab.playing .icon{animation:spin 2s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.music-panel{
+  position:fixed;bottom:82px;right:20px;z-index:50;
+  width:280px;background:rgba(13,11,26,.95);
+  border:1px solid rgba(212,175,55,.15);border-radius:16px;
+  padding:16px;transform:translateY(10px);opacity:0;
+  pointer-events:none;transition:all .3s ease;
+  backdrop-filter:blur(12px)
+}
+.music-panel.show{transform:translateY(0);opacity:1;pointer-events:auto}
+.music-panel .mp-title{font-size:.78rem;color:#D4AF37;font-weight:700;letter-spacing:1px;margin-bottom:8px}
+.music-panel .mp-sub{font-size:.65rem;color:#776655;margin-bottom:10px;line-height:1.5}
+.music-panel .mp-mantra{font-size:.72rem;color:#C9A227;letter-spacing:1px;margin-bottom:10px;font-style:italic}
+
+@media(max-width:380px){
+  .app{padding:10px 8px 32px}
+  .header h1{font-size:1.25rem}
+  .mandala-ring{width:90px;height:90px}
+  .mandala-center{width:38px;height:38px;font-size:1.1rem}
+  .yi-ji{grid-template-columns:1fr}
+  .fortune-grid{grid-template-columns:1fr}
+  .special-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+
+<div class="app">
+  <div class="header">
+    <div class="mandala-ring">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(212,175,55,.15)" stroke-width=".5"/>
+        <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(212,175,55,.12)" stroke-width=".5"/>
+        <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(212,175,55,.1)" stroke-width=".5"/>
+        <g stroke="rgba(212,175,55,.2)" stroke-width=".4" fill="none">
+          <line x1="50" y1="4" x2="50" y2="96"/><line x1="4" y1="50" x2="96" y2="50"/>
+          <line x1="15" y1="15" x2="85" y2="85"/><line x1="85" y1="15" x2="15" y2="85"/>
+          <line x1="50" y1="4" x2="85" y2="15"/><line x1="85" y1="15" x2="96" y2="50"/>
+          <line x1="96" y1="50" x2="85" y2="85"/><line x1="85" y1="85" x2="50" y2="96"/>
+          <line x1="50" y1="96" x2="15" y2="85"/><line x1="15" y1="85" x2="4" y2="50"/>
+          <line x1="4" y1="50" x2="15" y2="15"/><line x1="15" y1="15" x2="50" y2="4"/>
+        </g>
+        <g fill="rgba(212,175,55,.25)">
+          <circle cx="50" cy="4" r="1.5"/><circle cx="85" cy="15" r="1.5"/>
+          <circle cx="96" cy="50" r="1.5"/><circle cx="85" cy="85" r="1.5"/>
+          <circle cx="50" cy="96" r="1.5"/><circle cx="15" cy="85" r="1.5"/>
+          <circle cx="4" cy="50" r="1.5"/><circle cx="15" cy="15" r="1.5"/>
+        </g>
+        <path d="M50 20 A30 30 0 0 1 80 50" fill="none" stroke="rgba(212,175,55,.18)" stroke-width=".6"/>
+        <path d="M80 50 A30 30 0 0 1 50 80" fill="none" stroke="rgba(212,175,55,.18)" stroke-width=".6"/>
+        <path d="M50 80 A30 30 0 0 1 20 50" fill="none" stroke="rgba(212,175,55,.18)" stroke-width=".6"/>
+        <path d="M20 50 A30 30 0 0 1 50 20" fill="none" stroke="rgba(212,175,55,.18)" stroke-width=".6"/>
+      </svg>
+      <div class="mandala-center">☯</div>
+    </div>
+    <h1>时 轮 运 转</h1>
+    <div class="sub">Kalachakra Daily Fortune</div>
+  </div>
+
+  <!-- input -->
+  <div class="input-area" id="inputArea">
+    <div class="input-title">✧ 告诉时轮你的生辰 ✧</div>
+    <div class="input-row">
+      <input type="number" id="by" placeholder="出生年" min="1940" max="2020">
+      <input type="number" id="bm" placeholder="月" min="1" max="12">
+      <input type="number" id="bd" placeholder="日" min="1" max="31">
+    </div>
+    <div class="input-hint">用于计算人生进度与今日能量 · 仅存于本设备</div>
+    <button class="go-btn" onclick="goCalc()">🔮 开始测算</button>
+  </div>
+
+  <!-- date -->
+  <div class="date-card" id="dateCard" style="display:none">
+    <div class="solar" id="solarDate"></div>
+    <div class="lunar-row" id="lunarRow"></div>
+  </div>
+
+  <!-- life -->
+  <div class="section" id="lifeSec" style="display:none">
+    <div class="sec-title"><span class="dot"></span>人生进度条 · 时轮流转</div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>已度过今生</span><span id="lifePct">0%</span></div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="lifeFill" style="width:0%"></div>
+        <span class="progress-pct" id="lifePctBar"></span>
+      </div>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-item"><div class="stat-val" id="dLived">-</div><div class="stat-lbl">已活天数</div></div>
+      <div class="stat-item warm"><div class="stat-val" id="dWorked">-</div><div class="stat-lbl">职场天数</div></div>
+      <div class="stat-item rose"><div class="stat-val" id="dRetire">-</div><div class="stat-lbl">距退休</div></div>
+      <div class="stat-item cool"><div class="stat-val" id="todayCost">-</div><div class="stat-lbl">今日消耗</div></div>
+    </div>
+  </div>
+
+  <!-- huangli -->
+  <div class="section" id="hlSec" style="display:none">
+    <div class="sec-title"><span class="dot"></span>时轮今日指南</div>
+    <div class="yi-ji">
+      <div class="yi-box">
+        <div class="yiji-title yes">✧ 宜 ✧</div>
+        <div class="tag-list" id="yiList"></div>
+      </div>
+      <div class="ji-box">
+        <div class="yiji-title no">✧ 忌 ✧</div>
+        <div class="tag-list" id="jiList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- fortune -->
+  <div class="section" id="ftSec" style="display:none">
+    <div class="sec-title"><span class="dot"></span>今日能量场</div>
+    <div class="stars-row" id="starsRow"></div>
+    <div class="fortune-grid" id="ftGrid"></div>
+    <div class="special-grid" id="spGrid"></div>
+  </div>
+
+  <!-- quote -->
+  <div class="quote-box" id="quoteBox" style="display:none">
+    <div class="quote-mark">❝</div>
+    <div class="quote-txt" id="quoteTxt"></div>
+    <div class="quote-from" id="quoteFrom"></div>
+  </div>
+
+  <button class="share-btn" id="shareBtn" style="display:none" onclick="doShare()">📤 分享今日时轮能量</button>
+
+  <div class="footer">ཨོཾ་ ཧྲཱིཿ 时轮运转 · 仅供娱乐 · 不背锅</div>
+</div>
+
+<!-- Music Player -->
+<button class="music-fab" id="musicFab" onclick="toggleMusic()">
+  <span class="icon">🎵</span>
+</button>
+<div class="music-panel" id="musicPanel">
+  <div class="mp-title">🎶 随愿聚福 · 黄财神心咒</div>
+  <div class="mp-mantra">嗡 藏巴拉 扎连札 耶 梭哈</div>
+  <div class="mp-sub">黄财神心咒 × 现代流行旋律<br>在音乐中放下焦虑，打开心中的财富之门</div>
+  <iframe src="https://player.bilibili.com/player.html?bvid=BV1yKR6YYENx&high_quality=1&danmaku=0&autoplay=0" 
+    allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups"
+    style="width:100%;height:180px;border:none;border-radius:10px;margin-top:10px;background:#000"></iframe>
+  <a href="https://www.bilibili.com/video/BV1yKR6YYENx/" target="_blank" rel="noopener" style="
+    display:block;margin-top:8px;text-align:center;font-size:.65rem;
+    color:#D4AF37;text-decoration:none;letter-spacing:1px
+  ">🔗 B站原视频</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.7.7/lunar.min.js"></script>
+<script>
+// ── Canvas bg ──
+const cv=document.getElementById('bg'),cx=cv.getContext('2d');
+let pts=[];
+function rsz(){cv.width=innerWidth;cv.height=innerHeight;initPts()}
+function initPts(){
+  const n=Math.min(Math.floor(innerWidth/15),80);
+  pts=Array.from({length:n},()=>({
+    x:Math.random()*cv.width,y:Math.random()*cv.height,
+    r:Math.random()*1.2+.2,a:.1+Math.random()*.4,
+    sp:.01+Math.random()*.025,ph:Math.random()*Math.PI*2,
+    c:Math.random()<.15?'#D4AF37':Math.random()<.3?'#B8860B':'#FFF8DC'
+  }));
+}
+function drawBg(){
+  cx.clearRect(0,0,cv.width,cv.height);
+  for(const p of pts){
+    p.ph+=p.sp;p.a=.15+.35*(.5+.5*Math.sin(p.ph));
+    cx.globalAlpha=p.a;cx.fillStyle=p.c;
+    cx.beginPath();cx.arc(p.x,p.y,p.r,0,Math.PI*2);cx.fill();
+  }
+  requestAnimationFrame(drawBg);
+}
+rsz();initPts();drawBg();
+window.addEventListener('resize',rsz);
+
+// ── Data pools ──
+const BK='huangli_birth2';
+
+const YI=[
+  '摸鱼','带薪拉屎','装忙','准点下班','划水','发呆',
+  '喝水','上厕所','假装开会','甩锅','带薪刷手机',
+  '带薪聊天','带薪思考人生','带薪呼吸','带薪眨眼',
+  '合理摸鱼','科学划水','战略性休息','战术性喝水',
+  '拒绝内卷','躺平摆烂','精神离职','安静离开',
+  '准点吃饭','午睡补觉','提前收拾包','已读不回',
+  '转发给闺蜜看','敷面膜','做美甲','喝奶茶',
+  '买花给自己','睡懒觉','追剧','点外卖',
+  '自拍','发朋友圈','逛淘宝','清空购物车',
+  '和喜欢的人聊天','撒娇','卖萌','被夸可爱',
+  '收到红包','被请客','蹭吃蹭喝','不回工作消息',
+  '把老板当背景板','把同事当NPC','把自己当主角',
+  '准时下班跑路','带薪焦虑','带薪叹气','带薪听歌',
+  '带薪走神','带薪整理桌面','带薪伸懒腰',
+  '带薪闭目养神','回复"收到"然后消失'
+];
+
+const JI=[
+  '主动接活','回复"好的"','提建议','加班','背锅',
+  '主动揽活','说"我来做"','在群里说"我可以"',
+  '主动请缨','表现积极','提前到岗','晚于17:59下班',
+  '周末回消息','说"没问题"','承诺deadline',
+  '当老好人','主动汇报','申请加任务',
+  '认真开会','做会议纪要','对需求说好的没问题',
+  '帮同事的忙','替人背锅','展现上进心',
+  '写PPT到深夜','重构没有bug的功能',
+  '回复"收到请放心"','说"我来看看"',
+  '忍住不买奶茶','忍住不下单','忍住不吃夜宵',
+  '照镜子叹气','称体重','看前任动态',
+  '和杠精争论','帮不想帮的人','答应不合理要求',
+  '熬夜追剧到三点','素颜见前男友','穿不合脚的高跟鞋'
+];
+
+const FORTUNE_NAMES=['大凶','凶','小凶','平','小吉','吉','中吉','大吉','上上大吉'];
+const FORTUNE_COLORS=['#CC3333','#DD4444','#EE6666','#9999BB','#77BB77','#33CC66','#22DD55','#11EE44','#D4AF37'];
+
+const LOVE_FATES=[
+  {icon:'💕',txt:'桃花旺旺',desc:'今天容易遇到心动的人'},
+  {icon:'💘',txt:'暧昧升温',desc:'那个TA今天会想你'},
+  {icon:'💝',txt:'感情稳定',desc:'适合和另一半约会'},
+  {icon:'💟',txt:'单身也快乐',desc:'一个人也可以很精彩'},
+  {icon:'💗',txt:'旧情复燃',desc:'可能会收到久违的消息'},
+  {icon:'💖',txt:'正缘将至',desc:'保持美丽，缘分在路上'},
+  {icon:'💞',txt:'友情转爱情',desc:'留意身边那个TA'},
+  {icon:'💓',txt:'心动时刻',desc:'今天心跳会加速哦'},
+  {icon:'💌',txt:'表白吉日',desc:'想说的今天就勇敢说'}
+];
+
+const BEAUTY_FATES=[
+  {icon:'✨',txt:'颜值巅峰',desc:'今天怎么拍都好看'},
+  {icon:'💄',txt:'妆容服帖',desc:'化妆手不抖的一天'},
+  {icon:'👗',txt:'穿搭开挂',desc:'随便穿都像时尚博主'},
+  {icon:'💅',txt:'美甲不掉',desc:'刚做的指甲格外持久'},
+  {icon:'🧖‍♀️',txt:'皮肤发光',desc:'状态好到不用滤镜'},
+  {icon:'👀',txt:'眼睛有神',desc:'眼神迷人，魅力MAX'},
+  {icon:'💇‍♀️',txt:'发型完美',desc:'头发特别听话'},
+  {icon:'🌸',txt:'气色红润',desc:'整个人都在发光'}
+];
+
+const MONEY_FATES=[
+  {icon:'💰',txt:'偏财运旺',desc:'可能有小惊喜入账'},
+  {icon:'💵',txt:'正财稳定',desc:'该有的钱不会少'},
+  {icon:'💳',txt:'克制消费',desc:'今天别冲动下单'},
+  {icon:'🧧',txt:'有意外之财',desc:'红包或退款可能到来'},
+  {icon:'💎',txt:'值得投资',desc:'花钱在自己身上不亏'},
+  {icon:'🐷',txt:'招财进宝',desc:'今天财运看你顺眼'},
+  {icon:'🎁',txt:'有人请客',desc:'白嫖的机会来了'},
+  {icon:'📈',txt:'理财有收益',desc:'看看基金是不是绿了'}
+];
+
+const HEALTH_FATES=[
+  {icon:'🌿',txt:'精力充沛',desc:'今天元气满满'},
+  {icon:'😴',txt:'需要休息',desc:'早点睡觉别硬撑'},
+  {icon:'🍵',txt:'多喝水',desc:'身体在提醒你补水'},
+  {icon:'🏃‍♀️',txt:'适合运动',desc:'动一动会更开心'},
+  {icon:'🥗',txt:'饮食清淡',desc:'少吃油腻对身体好'},
+  {icon:'💆‍♀️',txt:'放松身心',desc:'泡个澡按个摩'},
+  {icon:'💊',txt:'注意保暖',desc:'别着凉了'},
+  {icon:'🧘‍♀️',txt:'冥想吉时',desc:'静下来会有好灵感'}
+];
+
+const LUCKY_COLORS=[
+  {n:'金色',d:'高贵典雅·气场全开'},{n:'白色',d:'纯净温柔·初恋感'},{n:'粉色',d:'甜美可人·桃花运+'},
+  {n:'红色',d:'热情自信·C位出道'},{n:'黑色',d:'神秘酷飒·高级感'},{n:'蓝色',d:'冷静知性·气质拿捏'},
+  {n:'紫色',d:'浪漫梦幻·仙女本仙'},{n:'绿色',d:'清新自然·生机勃勃'},{n:'米色',d:'温柔百搭·不挑肤色'}
+];
+const LUCKY_NUMS=[
+  {n:'7',d:'一周七天·今天最幸运'},{n:'18',d:'要发·财运亨通'},{n:'5',d:'周五快了·再坚持一下'},
+  {n:'3',d:'三生有幸·好事成双'},{n:'9',d:'久久为功·长长久久'},{n:'1',d:'一心一意·专注自己'},
+  {n:'6',d:'六六大顺·万事顺意'},{n:'0',d:'从零开始·新的可能'},{n:'2',d:'二人世界·甜蜜加倍'}
+];
+
+const WEALTH_DIRS=[
+  {d:'东方',h:'紫气东来·好运从日出方向来'},
+  {d:'南方',h:'向阳而生·吸收正能量'},
+  {d:'西方',h:'日落金山·收获满满'},
+  {d:'北方',h:'厚德载物·稳中求胜'},
+  {d:'东南',h:'贵人方位·好运聚集'},
+  {d:'东北',h:'艮位守财·守住钱包'},
+  {d:'西南',h:'坤位柔顺·以柔克刚'},
+  {d:'西北',h:'乾位刚健·事业上升'}
+];
+
+const DRINKS=['奶茶（少糖去冰）','冰美式（不加糖）','白开水（养生）','果茶（维C满满）','气泡水（清爽）','热可可（治愈）','柠檬茶（解腻）','燕麦奶（健康）'];
+
+const QUOTES=[
+  {t:'今日宜苟住，来日方长',f:'—— 《时轮心经》第一章'},
+  {t:'你若盛开，蝴蝶爱来不来',f:'—— 花开不为了谁'},
+  {t:'钱可以再赚，但今天的奶茶过了今天就没了',f:'—— 饮品哲学家'},
+  {t:'不要因为别人发光就觉得自己暗淡',f:'—— 你是月亮，他们是星星'},
+  {t:'成年人的崩溃都是静音模式',f:'—— 所以大声哭出来吧'},
+  {t:'努力的意义是以后有选择"不"的权利',f:'—— 选择权比努力更重要'},
+  {t:'你很好，只是还没遇到懂你的人',f:'—— 时轮告诉你：快了'},
+  {t:'今天的辛苦是为了明天更从容地偷懒',f:'—— 战略性规划'},
+  {t:'长得好看是天赋，活得好看是本事',f:'—— 你两项都有'},
+  {t:'没有人能随随便便成功，但你可以随随便便快乐',f:'—— 快乐不需要门槛'},
+  {t:'与其取悦别人不如取悦自己',f:'—— 时轮认证：自爱第一'},
+  {t:'所有的不期而遇都在路上',f:'—— 别急，该来的会来'},
+  {t:'你的存在本身就是美好的证明',f:'—— 不需要向任何人证明'},
+  {t:'今天的你比昨天更接近幸福',f:'—— 即使只近了一点点'},
+  {t:'允许自己偶尔不优秀，但永远不允许自己不爱自己',f:'—— 自爱公约第一条'},
+  {t:'生活不是电影没有彩排，但每天都可以是最佳女主角',f:'—— 导演是你自己'},
+  {t:'温柔要有，但不是妥协',f:'—— 在安静中不慌不忙地坚强'},
+  {t:'愿你眼里有光，笑里全是坦荡',f:'—— 时轮祝福'},
+  {t:'宇宙山河浪漫，生活点滴温暖',f:'—— 都值得你热爱'},
+  {t:'种自己的花，爱自己的宇宙',f:'—— 独立且自由'}
+];
+
+// ── Helpers ──
+function sRand(s){
+  let x=Math.sin(s*9301+49297)%233280;
+  return(x-Math.floor(x));
+}
+function tSeed(){const d=new Date();return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
+function pick(a,s){return a[Math.floor(sRand(s)*a.length)]}
+function pickN(a,n,s){const r=[],av=[...a];for(let i=0;i<n&&av.length>0;i++){const k=Math.floor(sRand(s+i*131)*av.length);r.push(av.splice(k,1)[0])}return r}
+function daysDiff(y1,m1,d1,y2,m2,d2){return Math.floor((new Date(y2,m2-1,d2)-new Date(y1,m1-1,d1))/86400000)}
+function fmt(n){return n.toLocaleString('zh-CN')}
+
+// ── Core ──
+function loadB(){try{return JSON.parse(localStorage.getItem(BK))}catch(e){return null}}
+function goCalc(){
+  const y=parseInt(document.getElementById('by').value);
+  const m=parseInt(document.getElementById('bm').value);
+  const d=parseInt(document.getElementById('bd').value);
+  if(!y||y<1940||y>2020){alert('请输入有效出生年份');return}
+  if(!m||m<1||m>12){alert('请输入有效月份');return}
+  if(!d||d<1||m===2?d>29:d>31){alert('请输入有效日期');return}
+  localStorage.setItem(BK,JSON.stringify({y,m,d}));
+  render();
+}
+
+function render(){
+  document.getElementById('inputArea').style.display='none';
+  ['dateCard','lifeSec','hlSec','ftSec','quoteBox','shareBtn'].forEach(id=>{
+    document.getElementById(id).style.display='';
+  });
+  const birth=loadB(),now=new Date(),seed=tSeed();
+
+  // Date card
+  const wd=['日','一','二','三','四','五','六'];
+  document.getElementById('solarDate').textContent=
+    `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 星期${wd[now.getDay()]}`;
+
+  try{
+    const solar=Lunar.Solar.fromYmd(now.getFullYear(),now.getMonth()+1,now.getDate());
+    const lunar=solar.getLunar();
+    const gzY=lunar.getYearInGanZhiExact(),gzM=lunar.getMonthInGanZhi(),gzD=lunar.getDayInGanZhi();
+    const sx=lunar.getYearShengXiao(),lm=lunar.getMonthInChinese(),ld=lunar.getDayInChinese();
+    const jq=lunar.getJieQi();
+
+    document.getElementById('lunarRow').innerHTML=
+      `<span class="lunar-item">${gzY}年</span>`+
+      `<span class="lunar-item">${gzM}月${gzD}日</span>`+
+      `<span class="lunar-item tibetan">🕉️ ${sx}年 · ${lm}月${ld}</span>`+
+      (jq?`<span class="lunar-item jieqi">节气 · ${jq}</span>`:'');
+  }catch(e){
+    document.getElementById('lunarRow').innerHTML='<span class="lunar-item">正在连接时轮...</span>';
+  }
+
+  // Life progress
+  if(birth){
+    const lived=daysDiff(birth.y,birth.m,birth.d,now.getFullYear(),now.getMonth()+1,now.getDate());
+    const exp=80*365,wStart=22*365,rAge=60*365;
+    const wDone=Math.max(0,lived-wStart),toRet=Math.max(0,rAge-lived);
+    const pct=Math.min(100,(lived/exp*100)).toFixed(1);
+
+    document.getElementById('lifePct').textContent=pct+'%';
+    document.getElementById('lifeFill').style.width=pct+'%';
+    document.getElementById('lifePctBar').textContent=pct+'%';
+    document.getElementById('dLived').textContent=fmt(lived)+' 天';
+    document.getElementById('dWorked').textContent=lived>=wStart?fmt(wDone)+' 天':'—';
+    document.getElementById('dRetire').textContent=fmt(toRet)+' 天';
+    document.getElementById('todayCost').textContent='1 天';
+  }
+
+  // Yi/Ji
+  document.getElementById('yiList').innerHTML=pickN(YI,8,seed).map(t=>`<span class="tag">${t}</span>`).join('');
+  document.getElementById('jiList').innerHTML=pickN(JI,8,seed+42).map(t=>`<span class="tag">${t}</span>`).join('');
+
+  // Fortune stars
+  const fi=Math.floor(sRand(seed+99)*FORTUNE_NAMES.length);
+  const sc=fi+1,clr=FORTUNE_COLORS[fi],nm=FORTUNE_NAMES[fi];
+  let sh='';
+  for(let i=0;i<5;i++)sh+=i<sc?`<span style="color:${clr}">★</span>`:`<span style="#333">☆</span>`;
+  document.getElementById('starsRow').innerHTML=sh+`&nbsp;<span style="font-size:.75rem;color:${clr};vertical-align:middle">${nm}</span>`;
+
+  // Fortune details
+  const lc=pick(LUCKY_COLORS,seed+11),ln=pick(LUCKY_NUMS,seed+22),wd2=pick(WEALTH_DIRS,seed+33);
+  document.getElementById('ftGrid').innerHTML=
+    `<div class="ft-item"><span class="ft-icon">🎨</span><span class="ft-key">幸运色</span><span class="ft-val">${lc.n} · ${lc.d}</span></div>`+
+    `<div class="ft-item"><span class="ft-icon">🔢</span><span class="ft-key">幸运数</span><span class="ft-val">${ln.n} · ${ln.d}</span></div>`+
+    `<div class="ft-item"><span class="ft-icon">💫</span><span class="ft-key">旺财方</span><span class="ft-val">${wd2.d} · ${wd2.h}</span></div>`+
+    `<div class="ft-item"><span class="ft-icon">🍵</span><span class="ft-key">今日饮品</span><span class="ft-val">${pick(DRINKS,seed+55)}</span></div>`;
+
+  // Special fates (love, beauty, money, health)
+  const lf=pick(LOVE_FATES,seed+111),bf=pick(BEAUTY_FATES,seed+222);
+  const mf=pick(MONEY_FATES,seed+333),hf=pick(HEALTH_FATES,seed+444);
+  document.getElementById('spGrid').innerHTML=
+    `<div class="sp-card love"><div class="sp-icon">${lf.icon}</div><div class="sp-title">今日桃花</div><div class="sp-desc">${lf.txt}<br><span style="font-size:.68rem;font-weight:400;color:#B08090">${lf.desc}</span></div></div>`+
+    `<div class="sp-card beauty"><div class="sp-icon">${bf.icon}</div><div class="sp-title">颜值能量</div><div class="sp-desc">${bf.txt}<br><span style="font-size:.68rem;font-weight:400;color:#9080A0">${bf.desc}</span></div></div>`+
+    `<div class="sp-card money"><div class="sp-icon">${mf.icon}</div><div class="sp-title">财富能量</div><div class="sp-desc">${mf.txt}<br><span style="font-size:.68rem;font-weight:400;color:#998855">${mf.desc}</span></div></div>`+
+    `<div class="sp-card health"><div class="sp-icon">${hf.icon}</div><div class="sp-title">身心状态</div><div class="sp-desc">${hf.txt}<br><span style="font-size:.68rem;font-weight:400;color:#559977">${hf.desc}</span></div></div>`;
+
+  // Quote
+  const q=pick(QUOTES,seed+777);
+  document.getElementById('quoteTxt').textContent=q.t;
+  document.getElementById('quoteFrom').textContent=q.f;
+}
+
+function doShare(){
+  const yiTxt=[...document.querySelectorAll('#yiList .tag')].slice(0,4).map(e=>e.textContent).join(' ');
+  const jiTxt=[...document.querySelectorAll('#jiList .tag')].slice(0,4).map(e=>e.textContent).join(' ');
+  const txt=`🔮 时轮运转 · 每日一签\n\n${document.getElementById('solarDate').textContent}\n\n✧ 推荐：${yiTxt}\n✧ 避开：${jiTxt}\n\n💬 ${document.getElementById('quoteTxt').textContent}\n\n🕉️ 基于藏历时轮历法\n👇 看看你今天的能量`;
+  if(navigator.share){navigator.share({title:'时轮运转',text:txt,url:location.href})}else{
+    const ta=document.createElement('textarea');ta.value=txt;
+    ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');alert('已复制！去小红书粘贴 📋')}catch(e){alert(txt)}
+    ta.remove();
+  }
+}
+
+// Boot
+(function(){
+  const b=loadB();
+  if(b){document.getElementById('by').value=b.y;document.getElementById('bm').value=b.m;document.getElementById('bd').value=b.d;render()}
+})();
+
+// ── Music Player ──
+let musicOpen=false;
+function toggleMusic(){
+  const panel=document.getElementById('musicPanel');
+  const fab=document.getElementById('musicFab');
+  musicOpen=!musicOpen;
+  if(musicOpen){
+    panel.classList.add('show');
+    fab.classList.add('playing');
+  }else{
+    panel.classList.remove('show');
+    fab.classList.remove('playing');
+  }
+}
+</script>
+</body>
+</html>
